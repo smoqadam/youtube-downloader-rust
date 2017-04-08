@@ -107,10 +107,7 @@ fn send_request(url: &str) -> Response {
     let ssl = NativeTlsClient::new().unwrap();
     let connector = HttpsConnector::new(ssl);
     let client = Client::with_connector(connector);
-    match client.get(url).send() {
-        Ok(response) => response,
-        Err(why) => panic!("{}", why),
-    }
+    client.get(url).send().unwrap()
 }
 
 fn parse_url(query: &str) -> HashMap<String, String> {
