@@ -14,57 +14,50 @@ use std::io::Read;
 use std::io::prelude::*;
 use std::fs::File;
 
-
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let url = format!("http://youtube.com/get_video_info?video_id={}", args[1]);
-    download(&url);
-}
-
-fn download(url: &str) {
-    let mut response = send_request(url);
+    let url = format!("https://youtube.com/get_video_info?video_id={}", args[1]);
+    let mut response = send_request(&url);
     let mut response_str = String::new();
     response.read_to_string(&mut response_str).unwrap();
     let hq = parse_url(&response_str);
+
+    if hq["status"] != "ok" {
+        println!("Video not found!");
+        return;
+    }
+
     // get video info
-    let streams: Vec<&str> = hq.get("url_encoded_fmt_stream_map")
-        .unwrap()
-        .split(",")
+    let streams: Vec<&str> = hq["url_encoded_fmt_stream_map"]
+        .split(',')
         .collect();
-
-    // get video title
-    let title = hq.get("title").unwrap();
-
-    let mut i = 0;
 
     // list of available qualities
     let mut qualities: HashMap<i32, (String, String)> = HashMap::new();
-    for url in streams.iter() {
-        i += 1;
-        let quality = parse_url(&url);
-        let extension = quality.get("type")
-            .unwrap()
-            .split("/")
+    for (i, url) in streams.iter().enumerate() {
+        let quality = parse_url(url);
+        let extension = quality["type"]
+            .split('/')
             .nth(1)
             .unwrap()
-            .split(";")
+            .split(';')
             .next()
             .unwrap();
-        qualities.insert(i,
-                         (quality.get("url").unwrap().to_string(), extension.to_owned()));
+        qualities.insert(i as i32,
+                         (quality["url"].to_string(), extension.to_owned()));
         println!("{}- {} {}",
                  i,
-                 quality.get("quality").unwrap(),
-                 quality.get("type").unwrap());
+                 quality["quality"],
+                 quality["type"]);
     }
 
-    println!("Choose quality: ");
-    let input = read_line().trim().parse().unwrap();
+    println!("Choose quality (0): ");
+    let input = read_line().trim().parse().unwrap_or(0);
 
     println!("Please wait...");
 
-    let url = &qualities.get(&input).unwrap().0;
-    let extension = &qualities.get(&input).unwrap().1;
+    let url = &qualities[&input].0;
+    let extension = &qualities[&input].1;
 
     // get response from selected quality
     let mut response = send_request(url);
@@ -81,14 +74,13 @@ fn download(url: &str) {
         .parse()
         .unwrap();
 
-    let filename = format!("{}.{}", title, extension);
+    let filename = format!("{}.{}", hq["title"], extension);
 
     // write file to disk
     write_file(response, &filename, file_size);
 }
 
 fn write_file(mut response: Response, title: &str, file_size: u64) {
-
     // initialize progressbar
     let mut pb = ProgressBar::new(file_size);
     pb.format("╢▌▌░╟");
@@ -109,26 +101,20 @@ fn write_file(mut response: Response, title: &str, file_size: u64) {
             Err(why) => panic!("{}", why),
         };
     }
-
 }
 
 fn send_request(url: &str) -> Response {
     let ssl = NativeTlsClient::new().unwrap();
     let connector = HttpsConnector::new(ssl);
     let client = Client::with_connector(connector);
-    match client.get(url).send() {
-        Ok(response) => response,
-        Err(why) => panic!("{}", why),
-    }
+    client.get(url).send().unwrap()
 }
-
 
 fn parse_url(query: &str) -> HashMap<String, String> {
     let u = format!("{}{}", "http://e.com?", query);
     let parsed_url = hyper::Url::parse(&u).unwrap();
     parsed_url.query_pairs().into_owned().collect()
 }
-
 
 fn read_line() -> String {
     let mut input = String::new();
