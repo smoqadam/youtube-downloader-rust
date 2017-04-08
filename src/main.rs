@@ -51,8 +51,8 @@ fn main() {
                  quality["type"]);
     }
 
-    println!("Choose quality: ");
-    let input = read_line().trim().parse().unwrap();
+    println!("Choose quality (0): ");
+    let input = read_line().trim().parse().unwrap_or(0);
 
     println!("Please wait...");
 
