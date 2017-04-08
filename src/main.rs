@@ -14,15 +14,10 @@ use std::io::Read;
 use std::io::prelude::*;
 use std::fs::File;
 
-
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let url = format!("http://youtube.com/get_video_info?video_id={}", args[1]);
-    download(&url);
-}
-
-fn download(url: &str) {
-    let mut response = send_request(url);
+    let url = format!("https://youtube.com/get_video_info?video_id={}", args[1]);
+    let mut response = send_request(&url);
     let mut response_str = String::new();
     response.read_to_string(&mut response_str).unwrap();
     let hq = parse_url(&response_str);
