@@ -28,35 +28,27 @@ fn main() {
     }
 
     // get video info
-    let streams: Vec<&str> = hq.get("url_encoded_fmt_stream_map")
-        .unwrap()
-        .split(",")
+    let streams: Vec<&str> = hq["url_encoded_fmt_stream_map"]
+        .split(',')
         .collect();
-
-    // get video title
-    let title = hq.get("title").unwrap();
-
-    let mut i = 0;
 
     // list of available qualities
     let mut qualities: HashMap<i32, (String, String)> = HashMap::new();
-    for url in streams.iter() {
-        i += 1;
-        let quality = parse_url(&url);
-        let extension = quality.get("type")
-            .unwrap()
-            .split("/")
+    for (i, url) in streams.iter().enumerate() {
+        let quality = parse_url(url);
+        let extension = quality["type"]
+            .split('/')
             .nth(1)
             .unwrap()
-            .split(";")
+            .split(';')
             .next()
             .unwrap();
-        qualities.insert(i,
-                         (quality.get("url").unwrap().to_string(), extension.to_owned()));
+        qualities.insert(i as i32,
+                         (quality["url"].to_string(), extension.to_owned()));
         println!("{}- {} {}",
                  i,
-                 quality.get("quality").unwrap(),
-                 quality.get("type").unwrap());
+                 quality["quality"],
+                 quality["type"]);
     }
 
     println!("Choose quality: ");
@@ -64,8 +56,8 @@ fn main() {
 
     println!("Please wait...");
 
-    let url = &qualities.get(&input).unwrap().0;
-    let extension = &qualities.get(&input).unwrap().1;
+    let url = &qualities[&input].0;
+    let extension = &qualities[&input].1;
 
     // get response from selected quality
     let mut response = send_request(url);
@@ -82,14 +74,13 @@ fn main() {
         .parse()
         .unwrap();
 
-    let filename = format!("{}.{}", title, extension);
+    let filename = format!("{}.{}", hq["title"], extension);
 
     // write file to disk
     write_file(response, &filename, file_size);
 }
 
 fn write_file(mut response: Response, title: &str, file_size: u64) {
-
     // initialize progressbar
     let mut pb = ProgressBar::new(file_size);
     pb.format("╢▌▌░╟");
@@ -110,7 +101,6 @@ fn write_file(mut response: Response, title: &str, file_size: u64) {
             Err(why) => panic!("{}", why),
         };
     }
-
 }
 
 fn send_request(url: &str) -> Response {
@@ -123,13 +113,11 @@ fn send_request(url: &str) -> Response {
     }
 }
 
-
 fn parse_url(query: &str) -> HashMap<String, String> {
     let u = format!("{}{}", "http://e.com?", query);
     let parsed_url = hyper::Url::parse(&u).unwrap();
     parsed_url.query_pairs().into_owned().collect()
 }
-
 
 fn read_line() -> String {
     let mut input = String::new();
