@@ -77,7 +77,19 @@ fn download(url: &str) {
     }
 
     println!("Choose quality: ");
-    let input = read_line().trim().parse().unwrap();
+    let mut input = 0;
+    let mut picked = false;
+    while !picked {
+        input = match read_line().trim().parse() {
+            Ok(num) => {
+                picked = true;
+                num
+            },
+            Err(_) => {println!("Please input a number.");
+            0
+            }
+        };
+    }
 
     println!("Please wait...");
 
