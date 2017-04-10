@@ -73,9 +73,19 @@ fn download(url: &str) {
     }
 
     println!("Choose quality (0): ");
-    let input = read_line().trim().parse().unwrap_or(0);
-
-    println!("Please wait...");
+     let mut input = 0;
+     let mut picked = false;
+     while !picked {
+         input = match read_line().trim().parse() {
+             Ok(num) => {
+                 picked = true;
+                 num
+             },
+             Err(_) => {println!("Please input a number.");
+             0
+             }
+         };
+     println!("Please wait...");
 
     let url = &qualities[&input].0;
     let extension = &qualities[&input].1;
