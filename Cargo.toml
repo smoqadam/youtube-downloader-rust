@@ -4,8 +4,8 @@ version = "0.1.0"
 authors = ["smoqadam <phpro.ir@gmail.com>"]
 
 [dependencies]
-hyper="*"
-hyper-native-tls="*"
-pbr="*"
-clap="*"
-regex="*"
+hyper="0.10.8"
+hyper-native-tls="0.2.2"
+pbr = "1.0.0-alpha.3"
+clap="2.23.2"
+regex="0.2.1"

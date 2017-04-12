@@ -6,7 +6,7 @@ extern crate regex;
 
 use std::process;
 use pbr::ProgressBar;
-use std::str;
+use std::{process,str};
 use std::collections::HashMap;
 use hyper::client::response::Response;
 use hyper::Client;
@@ -18,7 +18,6 @@ use std::io::prelude::*;
 use std::fs::File;
 use clap::{Arg, App};
 use regex::Regex;
-
 
 fn main() {
     //Regex for youtube URLs.
@@ -44,8 +43,9 @@ fn main() {
         let vid_split = url_regex.captures(vid).unwrap();
         vid = vid_split.get(1).unwrap().as_str();
     }
-    let url = format!("http://youtube.com/get_video_info?video_id={}", vid);
-    download(&url, quality);
+
+    let url = format!("https://youtube.com/get_video_info?video_id={}", vid);
+    download(&url);
 }
 
 fn download(url: &str, quality: Option<&str>) {
@@ -53,37 +53,34 @@ fn download(url: &str, quality: Option<&str>) {
     let mut response_str = String::new();
     response.read_to_string(&mut response_str).unwrap();
     let hq = parse_url(&response_str);
+
+    if hq["status"] != "ok" {
+        println!("Video not found!");
+        process::exit(1);
+    }
+
     // get video info
-    let streams: Vec<&str> = hq.get("url_encoded_fmt_stream_map")
-        .unwrap()
-        .split(",")
+    let streams: Vec<&str> = hq["url_encoded_fmt_stream_map"]
+        .split(',')
         .collect();
-
-    // get video title
-    let title = hq.get("title").unwrap();
-
-    let mut i = 0;
 
     // list of available qualities
     let mut qualities: HashMap<i32, (String, String)> = HashMap::new();
-    for url in streams.iter() {
-        i += 1;
-        let quality = parse_url(&url);
-        let extension = quality
-            .get("type")
-            .unwrap()
-            .split("/")
+    for (i, url) in streams.iter().enumerate() {
+        let quality = parse_url(url);
+        let extension = quality["type"]
+            .split('/')
             .nth(1)
             .unwrap()
-            .split(";")
+            .split(';')
             .next()
             .unwrap();
-        qualities.insert(i,
-                         (quality.get("url").unwrap().to_string(), extension.to_owned()));
+        qualities.insert(i as i32,
+                         (quality["url"].to_string(), extension.to_owned()));
         println!("{}- {} {}",
                  i,
-                 quality.get("quality").unwrap(),
-                 quality.get("type").unwrap());
+                 quality["quality"],
+                 quality["type"]);
     }
 
     println!("Choose quality: ");
@@ -127,8 +124,8 @@ fn download(url: &str, quality: Option<&str>) {
 
     println!("Please wait...");
 
-    let url = &qualities.get(&input).unwrap().0;
-    let extension = &qualities.get(&input).unwrap().1;
+    let url = &qualities[&input].0;
+    let extension = &qualities[&input].1;
 
     // get response from selected quality
     let response = send_request(url);
@@ -137,7 +134,7 @@ fn download(url: &str, quality: Option<&str>) {
     // get file size from Content-Length header
     let file_size = get_file_size(&response);
 
-    let filename = format!("{}.{}", title, extension);
+    let filename = format!("{}.{}", hq["title"], extension);
 
     // write file to disk
     write_file(response, &filename, file_size);
@@ -180,19 +177,17 @@ fn send_request(url: &str) -> Response {
     let ssl = NativeTlsClient::new().unwrap();
     let connector = HttpsConnector::new(ssl);
     let client = Client::with_connector(connector);
-    match client.get(url).send() {
-        Ok(response) => response,
-        Err(why) => panic!("{}", why),
-    }
+    client.get(url).send().unwrap_or_else(|e| {
+        println!("Network request failed: {}", e);
+        process::exit(1);
+    })
 }
-
 
 fn parse_url(query: &str) -> HashMap<String, String> {
     let u = format!("{}{}", "http://e.com?", query);
     let parsed_url = hyper::Url::parse(&u).unwrap();
     parsed_url.query_pairs().into_owned().collect()
 }
-
 
 fn read_line() -> String {
     let mut input = String::new();
