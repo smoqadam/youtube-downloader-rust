@@ -4,6 +4,7 @@ extern crate pbr;
 extern crate clap;
 extern crate regex;
 
+use std::process;
 use pbr::ProgressBar;
 use std::{process,str};
 use std::collections::HashMap;
@@ -27,17 +28,27 @@ fn main() {
             .help("The ID of the video to download.")
             .required(true)
             .index(1))
+        .arg(Arg::with_name("quality")
+             .help("The index of the quality to download, 1 is always the best quality.")
+             .required(false)
+             .long("--quality")
+             .short("-q")
+             .value_name("quality")
+             .takes_value(true))
         .get_matches();
+
+    let quality = args.value_of("quality");
     let mut vid = args.value_of("video-id").unwrap();
     if url_regex.is_match(vid) {
         let vid_split = url_regex.captures(vid).unwrap();
         vid = vid_split.get(1).unwrap().as_str();
     }
+
     let url = format!("https://youtube.com/get_video_info?video_id={}", vid);
     download(&url);
 }
 
-fn download(url: &str) {
+fn download(url: &str, quality: Option<&str>) {
     let mut response = send_request(url);
     let mut response_str = String::new();
     response.read_to_string(&mut response_str).unwrap();
@@ -72,8 +83,44 @@ fn download(url: &str) {
                  quality["type"]);
     }
 
-    println!("Choose quality (0): ");
-    let input = read_line().trim().parse().unwrap_or(0);
+    println!("Choose quality: ");
+    let mut input = 0;
+    let mut picked = false;
+    //Check if the -q argument was passed.
+    if !quality.is_some() {
+        while !picked {
+            input = match read_line().trim().parse() {
+                Ok(num) => {
+                    if num <= i && num > 0 {
+                        picked = true;
+                        num
+                    } else {
+                        println!("Please pick a number between 1 and {}", i);
+                        0
+                    }
+                },
+                Err(_) => {
+                    println!("Please input a number.");
+                    0
+                }
+            };
+        }
+    } else {
+        input = match quality.unwrap().parse() {
+            Ok(num) => {
+                if num <= 1 && num > 0 {
+                    num
+                } else {
+                        println!("Please pick a number between 1 and {}", i);
+                        process::exit(1);
+                }
+            },
+            Err(_) => {
+                println!("The quality must be a number");
+                process::exit(1);
+            }
+        };
+    }
 
     println!("Please wait...");
 
